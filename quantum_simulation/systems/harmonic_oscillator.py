@@ -1,57 +1,58 @@
+import numpy as np
 from quantum_simulation.core.state import EigenStateBasis
 from quantum_simulation.core.operators import LadderOperator
 
 class HarmonicOscillator:
     """
-    Système de l'oscillateur harmonique à 1D.
-    Sources : [file:1, Chapitre V] (Règles 1.6.x)
+    Règles R6.1, R6.2, R6.3
+    Source : [file:1, Chapitre V]
     """
     
-    def __init__(self, mass: float, omega: float, hbar: float):
-        """
-        Paramètres : m, ω
-        Hamiltonien : H = P²/2m + (1/2)mω²X²
-        Source : [file:1, Chapitre V, § A] (Règle 1.6.1)
-        """
+    def __init__(self, mass: float, omega: float, hbar: float, n_max: int):
         self.mass = mass
         self.omega = omega
         self.hbar = hbar
+        self.n_max = n_max
         
     def energy_eigenvalue(self, n: int) -> float:
-        """
-        Retourne En = ℏω(n + 1/2)
-        Source : [file:1, Chapitre V, § B] (Règle 1.6.3)
-        """
+        """Règle R6.1 : En = ℏω(n + 1/2)"""
+        if n < 0 or n > self.n_max:
+            raise ValueError(f"n doit être entre 0 et {self.n_max}")
         return self.hbar * self.omega * (n + 0.5)
         
-    def creation_operator(self) -> 'LadderOperator':
+    def hamiltonian_matrix(self) -> np.ndarray:
         """
-        Construit a† = √(mω/2ℏ)(X - i/(mω)P)
-        Source : [file:1, Chapitre V, § B] (Règle 1.6.2)
+        Matrice H en base {|0⟩, |1⟩, ..., |n_max⟩}
+        Diagonale : En = ℏω(n+1/2)
         """
+        H = np.zeros((self.n_max + 1, self.n_max + 1))
+        for n in range(self.n_max + 1):
+            H[n, n] = self.energy_eigenvalue(n)
+        return H
         
-    def annihilation_operator(self) -> 'LadderOperator':
+    def annihilation_matrix(self) -> np.ndarray:
         """
-        Construit a = √(mω/2ℏ)(X + i/(mω)P)
-        Source : [file:1, Chapitre V, § B] (Règle 1.6.2)
-        
-        Vérifie : [a, a†] = 1
+        Règle R6.3 : a|n⟩ = √n|n-1⟩
+        Matrice creuse tri-diagonale inférieure
         """
+        a = np.zeros((self.n_max + 1, self.n_max + 1))
+        for n in range(1, self.n_max + 1):
+            a[n-1, n] = np.sqrt(n)
+        return a
         
-    def construct_eigenstate(self, n: int, n_max_basis: int) -> EigenStateBasis:
+    def creation_matrix(self) -> np.ndarray:
         """
-        Construit |n⟩ par récurrence :
-        - |0⟩ défini par a|0⟩ = 0
-        - |n⟩ = (a†)^n / √(n!) |0⟩
-        
-        Relations d'action :
-        - a|n⟩ = √n|n-1⟩
-        - a†|n⟩ = √(n+1)|n+1⟩
-        Source : [file:1, Chapitre V, § C] (Règle 1.6.4)
-        
-        LIMITE : Construction de |0⟩ en représentation position nécessiterait
-        la fonction d'onde explicite, non donnée dans l'extrait de synthèse fourni.
-        (Mentionné au Complément BV mais détails absents de l'extrait).
-        
-        Implémentation : travailler en base de Fock {|n⟩} abstraite.
+        Règle R6.3 : a†|n⟩ = √(n+1)|n+1⟩
+        Transpose conjuguée de a
         """
+        return self.annihilation_matrix().T
+        
+    def validate_algebra(self, tolerance: float = 1e-10) -> bool:
+        """
+        Vérifie Règle R6.2 : [a, a†] = I
+        """
+        a = self.annihilation_matrix()
+        a_dag = self.creation_matrix()
+        commutator = a @ a_dag - a_dag @ a
+        identity = np.eye(self.n_max + 1)
+        return np.allclose(commutator, identity, atol=tolerance)

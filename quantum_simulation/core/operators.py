@@ -3,8 +3,8 @@ from typing import Callable
 
 from abc import ABC, abstractmethod
 
-from quantum_simulation.core.state import QuantumState
-from quantum_simulation.core.state import WaveFunctionState
+from quantum_simulation.core.state import WaveFunctionState, QuantumState
+from quantum_simulation.utils.numerical import gradient_1d, laplacian_1d
 
 class Observable(ABC):
     """
@@ -68,51 +68,73 @@ class PositionOperator(Observable):
 
 class MomentumOperator(Observable):
     """
-    Observable impulsion P.
-    Sources :
-    - [file:1, Chapitre II, § E] : observable P(Px,Py,Pz)
-    - [file:1, Chapitre II, § E-2] : P = -iℏ∇ en représentation position (Règle 1.7.1)
-    
-    Relations de commutation canoniques :
-    - [file:1, Chapitre III, § B-5-a] : [Ri,Pj] = iℏδij (Règle 1.1.3)
+    Règle R1.3 : P = -iℏ∇ en représentation position
+    Source : [file:1, Chapitre II, § E-2]
     """
     
+    def __init__(self, hbar: float, dimension: int = 1):
+        self.hbar = hbar
+        self.dimension = dimension
+        
     def apply(self, state: WaveFunctionState) -> WaveFunctionState:
         """
         Applique P|ψ⟩ = -iℏ∇ψ
+        Méthode : Différences finies ordre 2
+        """
+        grad_psi = gradient_1d(state.wavefunction, state.dx, order=2)
+        return WaveFunctionState(
+            state.spatial_grid,
+            -1j * self.hbar * grad_psi
+        )
         
-        Limite : Implémentation de la dérivée numérique non spécifiée.
-        Choix laissé libre (différences finies, FFT, etc.)
+    def expectation_value(self, state: WaveFunctionState) -> float:
         """
+        ⟨P⟩ = ⟨ψ|P|ψ⟩
+        Règle R4.1
+        """
+        P_psi = self.apply(state)
+        return state.inner_product(P_psi).real
         
-    def validate_canonical_commutation(self, R: PositionOperator, 
-                                       test_states: list) -> bool:
+    def uncertainty(self, state: WaveFunctionState) -> float:
         """
-        Vérifie [Ri,Pj] = iℏδij sur états tests
-        Source : Règle 1.1.3
+        ΔP = √(⟨P²⟩ - ⟨P⟩²)
+        Règle R4.2
         """
+        P_psi = self.apply(state)
+        P2_psi = self.apply(P_psi)
+        
+        exp_P = state.inner_product(P_psi).real
+        exp_P2 = state.inner_product(P2_psi).real
+        
+        variance = exp_P2 - exp_P**2
+        if variance < 0:
+            variance = 0  # Erreurs numériques
+        return np.sqrt(variance)
 
 class Hamiltonian(Observable):
     """
-    Opérateur hamiltonien H (énergie totale).
-    Sources :
-    - [file:1, Chapitre III, § B-4] : "observable associée à l'énergie totale"
-    - [file:1, Chapitre III, § B-5-b] : H = P²/2m + V(R) (Règle 1.7.2)
+    Règle R3.2 : H = -ℏ²/2m Δ + V(r)
+    Source : [file:1, Chapitre III, § B-5-b]
     """
     
-    def __init__(self, mass: float, potential: Callable):
-        """
-        Attributs :
-        - mass : m (masse de la particule)
-        - potential : V(r) fonction scalaire
-        
-        Forme en représentation position :
-        H = -ℏ²/2m Δ + V(r)
-        """
+    def __init__(self, mass: float, potential: Callable[[np.ndarray], np.ndarray], hbar: float):
+        self.mass = mass
+        self.potential = potential
+        self.hbar = hbar
         
     def apply(self, state: WaveFunctionState) -> WaveFunctionState:
         """
-        Applique H|ψ⟩ = [-ℏ²/2m Δ + V(r)]ψ(r)
-        
-        Limite : Implémentation du laplacien numérique non spécifiée.
+        Applique H|ψ⟩ = [-ℏ²/2m Δ + V(r)]ψ
         """
+        # Terme cinétique
+        laplacian_psi = laplacian_1d(state.wavefunction, state.dx)
+        kinetic_term = -(self.hbar**2 / (2 * self.mass)) * laplacian_psi
+        
+        # Terme potentiel
+        V_values = self.potential(state.spatial_grid)
+        potential_term = V_values * state.wavefunction
+        
+        return WaveFunctionState(
+            state.spatial_grid,
+            kinetic_term + potential_term
+        )

@@ -1,81 +1,144 @@
+"""
+Classe abstraite pour expériences quantiques.
+
+Structure générale : Préparation → Évolution → Mesure → Analyse
+"""
+
 from abc import ABC, abstractmethod
-from quantum_simulation.core.state import QuantumState, WaveFunctionState
-from quantum_simulation.core.operators import Hamiltonian
+from typing import Dict, Any
+import time
+
 
 class Experiment(ABC):
     """
-    Structure générique d'une expérience quantique.
+    Classe de base pour toutes expériences de simulation quantique.
     
-    Cycle standard : préparation → évolution → mesure → analyse
-    Configuration via parameters.yaml
+    Cycle de vie:
+        1. prepare_initial_state()
+        2. define_hamiltonian()
+        3. evolve_state()
+        4. perform_measurements()
+        5. validate_physics()
+        6. analyze_results()
     """
     
-    def __init__(self, config: dict):
+    def __init__(self, config: Dict[str, Any]):
+        """
+        Args:
+            config: Dictionnaire configuration (chargé depuis YAML)
+        """
         self.config = config
-        self.results = {}
+        self.initial_state = None
+        self.evolved_states = []
+        self.measurement_results = {}
+        self.validation_results = {}
+        self.execution_time = 0.0
         
     @abstractmethod
-    def prepare_initial_state(self) -> QuantumState:
-        """Étape 1 : Préparation de l'état initial |ψ(t0)⟩"""
+    def prepare_initial_state(self):
+        """
+        Prépare état quantique initial |ψ(t₀)⟩.
+        
+        Doit vérifier normalisation (Règle R2.1).
+        """
+        pass
         
     @abstractmethod
-    def define_hamiltonian(self) -> Hamiltonian:
-        """Étape 2 : Définition du hamiltonien du système"""
+    def define_hamiltonian(self):
+        """
+        Définit hamiltonien H du système.
+        
+        Doit vérifier hermiticité (Règle R4.5).
+        """
+        pass
         
     @abstractmethod
-    def evolve_state(self, initial_state: QuantumState, 
-                    hamiltonian: Hamiltonian) -> QuantumState:
-        """Étape 3 : Évolution temporelle (ou état stationnaire)"""
+    def evolve_state(self):
+        """
+        Fait évoluer état selon équation Schrödinger (Règle R3.1).
+        
+        Doit vérifier conservation norme (Règle R5.1).
+        """
+        pass
         
     @abstractmethod
-    def perform_measurements(self, state: QuantumState) -> dict:
-        """Étape 4 : Mesures et statistiques"""
+    def perform_measurements(self):
+        """
+        Effectue mesures d'observables (Règles R4.1, R4.2).
+        """
+        pass
         
-    def run(self) -> dict:
+    @abstractmethod
+    def validate_physics(self) -> Dict[str, bool]:
         """
-        Exécution complète de l'expérience.
-        Retourne : résultats structurés (statistiques, validations, etc.)
-        """
-        state_init = self.prepare_initial_state()
-        H = self.define_hamiltonian()
-        state_evolved = self.evolve_state(state_init, H)
-        self.results = self.perform_measurements(state_evolved)
-        return self.results
+        Valide invariants physiques (Heisenberg, conservation, Ehrenfest).
         
-    def validate_physics(self) -> dict:
+        Returns:
+            Dictionnaire {nom_test: réussite}
         """
-        Vérifications physiques post-expérience :
-        - Normalisation maintenue
-        - Relations d'incertitude respectées (Règle 1.4.3)
-        - Conservation de probabilité (Règle 1.5.1)
+        pass
         
-        Retourne : {test_name: passed/failed}
+    def run(self) -> Dict[str, Any]:
         """
-
-class WavePacketEvolution(Experiment):
-    """
-    Expérience : évolution d'un paquet d'ondes gaussien libre.
-    
-    Objectif :
-    - Observer étalement temporel (mentionné Complément GI)
-    - Vérifier relations de Heisenberg (Règle 1.4.3)
-    - Vérifier théorème d'Ehrenfest (Règle 1.4.4)
-    """
-    
-    def prepare_initial_state(self) -> WaveFunctionState:
-        """
-        Construit paquet gaussien initial (paramètres depuis config)
+        Exécute cycle complet expérience.
         
-        LIMITE : Forme explicite du paquet gaussien mentionnée
-        (Complément GI) mais formules détaillées absentes de l'extrait synthèse.
-        Nécessiterait compléments du cours pour forme analytique complète.
+        Returns:
+            Résultats complets (états, mesures, validations, métadonnées)
         """
+        start_time = time.time()
         
-    def evolve_state(self, initial_state, hamiltonian) -> WaveFunctionState:
-        """Évolution via TimeEvolution.evolve_wavefunction()"""
+        print(f"[{self.__class__.__name__}] Démarrage expérience...")
         
-    def perform_measurements(self, state) -> dict:
+        # Étape 1: Préparation
+        print("  1/6 Préparation état initial...")
+        self.prepare_initial_state()
+        
+        # Étape 2: Hamiltonien
+        print("  2/6 Définition hamiltonien...")
+        self.define_hamiltonian()
+        
+        # Étape 3: Évolution
+        print("  3/6 Évolution temporelle...")
+        self.evolve_state()
+        
+        # Étape 4: Mesures
+        print("  4/6 Mesures observables...")
+        self.perform_measurements()
+        
+        # Étape 5: Validation
+        print("  5/6 Validation physique...")
+        self.validation_results = self.validate_physics()
+        
+        # Étape 6: Analyse (implémentée par sous-classes si nécessaire)
+        print("  6/6 Analyse résultats...")
+        analysis = self.analyze_results()
+        
+        self.execution_time = time.time() - start_time
+        print(f"  ✓ Expérience terminée en {self.execution_time:.2f}s")
+        
+        return self._compile_results(analysis)
+        
+    def analyze_results(self) -> Dict[str, Any]:
         """
-        Mesure ⟨X⟩, ⟨P⟩, ΔX, ΔP à différents temps.
-        Vérification ΔX·ΔP ≥ ℏ/2
+        Analyse post-traitement (optionnelle, peut être overridée).
+        
+        Returns:
+            Dictionnaire résultats analyse
         """
+        return {}
+        
+    def _compile_results(self, analysis: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Compile tous résultats en structure unique.
+        """
+        return {
+            'experiment_name': self.__class__.__name__,
+            'config': self.config,
+            'initial_state': self.initial_state,
+            'evolved_states': self.evolved_states,
+            'measurements': self.measurement_results,
+            'validation': self.validation_results,
+            'analysis': analysis,
+            'execution_time_seconds': self.execution_time,
+            'all_validations_passed': all(self.validation_results.values())
+        }

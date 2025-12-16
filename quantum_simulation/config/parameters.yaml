@@ -68,14 +68,18 @@ systems:
 # ============================================================
 experiments:
   wavepacket_evolution:
-    initial_state_type: "gaussian"  # Type paquet d'ondes initial
-    gaussian_parameters:
-      x0: null                      # Centre initial
-      sigma_x: null                 # Largeur spatiale
-      k0: null                      # Impulsion moyenne (nombre d'onde)
-      # LIMITE : Formule complète paquet gaussien au Complément GI
-      # mais détails absents de l'extrait synthèse fourni
-    evolution_times: []             # Liste de temps pour échantillonnage
+    initial_state:
+      type: "gaussian"
+      x0: 0.0                    # Position initiale (m)
+      sigma_x: 2.0e-9           # Largeur gaussienne (m)
+      k0: 5.0e9                 # Nombre d'onde central (m^-1)
+    system:
+      mass: 9.1093837015e-31    # Masse électron (kg)
+    evolution:
+      t_initial: 0.0            # Temps initial (s)
+      t_final: 5.0e-15         # Temps final (s)
+      dt: 1.0e-17               # Pas temporel (s)
+      times_sample: [0.0, 1.0e-15, 2.0e-15, 3.0e-15, 4.0e-15, 5.0e-15]  # Temps échantillonnage
     
   measurement_statistics:
     observable_to_measure: "position"  # "position", "momentum", "energy"
@@ -95,3 +99,15 @@ visualization:
   plot_current_density: false
   save_figures: true
   output_directory: "./results/"
+
+# ============================================================
+# VISUALISATION
+# ============================================================
+visualization:
+  plot_wavefunction: true
+  plot_probability_density: true
+  plot_current_density: false
+  create_animation: false        # true pour créer GIF (plus lent)
+  save_figures: true
+  output_directory: "./results/"
+  dpi: 150

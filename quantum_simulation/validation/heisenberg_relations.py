@@ -1,31 +1,133 @@
-from quantum_simulation.core.operators import Observable
-from quantum_simulation.core.state import QuantumState
+"""
+Validation des relations d'incertitude de Heisenberg.
+
+Règle R4.3 : ΔX·ΔP ≥ ℏ/2
+Source : [file:1, Chapitre III, § C-5]
+"""
+
+import numpy as np
+from typing import Dict, Tuple
+from quantum_simulation.core.state import WaveFunctionState
+from quantum_simulation.core.operators import PositionOperator, MomentumOperator
+
 
 class HeisenbergValidator:
     """
-    Validation des relations d'incertitude de Heisenberg.
-    Source : [file:1, Chapitre III, § C-5] (Règle 1.4.3)
+    Valide les relations d'incertitude de Heisenberg pour états quantiques.
     """
     
-    def validate_position_momentum(self, state: QuantumState, 
-                                    X: Observable, P: Observable,
-                                    tolerance: float = 1e-10) -> bool:
+    def __init__(self, hbar: float, tolerance: float = 1e-10):
         """
-        Vérifie : ΔX · ΔP ≥ ℏ/2 - tolerance
-        
-        Équations :
-        - ΔX = √(⟨X²⟩ - ⟨X⟩²)
-        - ΔP = √(⟨P²⟩ - ⟨P⟩²)
-        
-        Retourne : True si inégalité respectée
+        Args:
+            hbar: Constante de Planck réduite (J·s)
+            tolerance: Tolérance pour vérification inégalité
         """
+        self.hbar = hbar
+        self.tolerance = tolerance
         
-    def validate_commutator_uncertainty(self, A: Observable, B: Observable,
-                                        state: QuantumState) -> dict:
+    def validate_position_momentum(self, state: WaveFunctionState) -> Dict[str, float]:
         """
-        Vérifie relation générale (si fournie dans cours) :
-        ΔA · ΔB ≥ (1/2)|⟨[A,B]⟩|
+        Vérifie ΔX·ΔP ≥ ℏ/2 pour un état donné.
         
-        LIMITE : Formulation générale non explicitement donnée dans synthèse extraite.
-        Seul cas position-impulsion explicité (Règle 1.4.3).
+        Args:
+            state: État quantique normalisé
+            
+        Returns:
+            Dictionnaire contenant:
+                - 'delta_x': Incertitude position (m)
+                - 'delta_p': Incertitude impulsion (kg·m/s)
+                - 'product': ΔX·ΔP
+                - 'heisenberg_bound': ℏ/2
+                - 'is_valid': True si inégalité respectée
+                - 'excess': (ΔX·ΔP - ℏ/2) / (ℏ/2) (excès relatif)
+                
+        Raises:
+            ValueError: Si état non normalisé
         """
+        # Vérification normalisation
+        if not state.is_normalized(tolerance=self.tolerance):
+            raise ValueError(f"État non normalisé : ||ψ|| = {state.norm()}")
+            
+        # Création opérateurs
+        X_op = PositionOperator(dimension=1)
+        P_op = MomentumOperator(hbar=self.hbar, dimension=1)
+        
+        # Calcul incertitudes
+        delta_x = X_op.uncertainty(state)
+        delta_p = P_op.uncertainty(state)
+        
+        # Produit et borne
+        product = delta_x * delta_p
+        heisenberg_bound = self.hbar / 2.0
+        
+        # Validation (avec tolérance numérique)
+        is_valid = (product >= heisenberg_bound - self.tolerance)
+        excess = (product - heisenberg_bound) / heisenberg_bound
+        
+        return {
+            'delta_x': delta_x,
+            'delta_p': delta_p,
+            'product': product,
+            'heisenberg_bound': heisenberg_bound,
+            'is_valid': is_valid,
+            'excess': excess
+        }
+        
+    def validate_time_evolution(self, states: list[WaveFunctionState], 
+                                times: np.ndarray) -> Dict[str, np.ndarray]:
+        """
+        Vérifie Heisenberg durant évolution temporelle.
+        
+        Args:
+            states: Liste états à différents temps
+            times: Tableau temps correspondants
+            
+        Returns:
+            Dictionnaire avec historiques ΔX(t), ΔP(t), produit(t), validité(t)
+        """
+        n_times = len(states)
+        if n_times != len(times):
+            raise ValueError("Nombre d'états et de temps incohérent")
+            
+        delta_x_history = np.zeros(n_times)
+        delta_p_history = np.zeros(n_times)
+        product_history = np.zeros(n_times)
+        is_valid_history = np.zeros(n_times, dtype=bool)
+        
+        for i, state in enumerate(states):
+            result = self.validate_position_momentum(state)
+            delta_x_history[i] = result['delta_x']
+            delta_p_history[i] = result['delta_p']
+            product_history[i] = result['product']
+            is_valid_history[i] = result['is_valid']
+            
+        return {
+            'times': times,
+            'delta_x': delta_x_history,
+            'delta_p': delta_p_history,
+            'product': product_history,
+            'is_valid': is_valid_history,
+            'heisenberg_bound': self.hbar / 2.0,
+            'all_valid': np.all(is_valid_history)
+        }
+        
+    def compute_minimum_uncertainty_state_quality(self, state: WaveFunctionState) -> float:
+        """
+        Mesure proximité d'un état à un état de minimum d'incertitude.
+        
+        État cohérent/gaussien : ΔX·ΔP = ℏ/2 (égalité)
+        
+        Returns:
+            Qualité ∈ [0, 1], où 1 = état minimum incertitude parfait
+        """
+        result = self.validate_position_momentum(state)
+        product = result['product']
+        bound = result['heisenberg_bound']
+        
+        # Quality = 1 / (1 + écart relatif)
+        # Si product = bound → quality = 1
+        # Si product >> bound → quality → 0
+        relative_excess = (product - bound) / bound
+        quality = 1.0 / (1.0 + relative_excess)
+        
+        return quality

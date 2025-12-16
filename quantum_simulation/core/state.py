@@ -1,4 +1,6 @@
 from abc import ABC, abstractmethod
+import numpy as np
+from quantum_simulation.utils.numerical import integrate_1d
 
 class QuantumState(ABC):
     """
@@ -32,32 +34,46 @@ class QuantumState(ABC):
 
 class WaveFunctionState(QuantumState):
     """
-    État représenté par fonction d'onde ψ(r,t) en représentation position.
-    Source : [file:1, Chapitre I, § B-2] : "fonction d'onde ψ(r)"
-    
-    Attributs :
-    - spatial_grid : grille de discrétisation spatiale (r)
-    - wavefunction : np.ndarray (valeurs complexes de ψ aux points de grille)
-    - dimension : int (1D, 2D ou 3D)
+    Implémentation Règle R2.1 : ρ(r) = |ψ(r)|²
+    Source : [file:1, Chapitre I, § B-2]
     """
     
-    def __init__(self, spatial_grid, wavefunction: np.ndarray):
+    def __init__(self, spatial_grid: np.ndarray, wavefunction: np.ndarray):
+        self.spatial_grid = spatial_grid
+        self.wavefunction = wavefunction
+        self.dx = spatial_grid[1] - spatial_grid[0]  # Grille uniforme
+        
+    def norm(self) -> float:
         """
-        Hypothèses :
-        - Discrétisation spatiale nécessaire (méthode numérique non spécifiée dans synthèse)
+        Calcule √⟨ψ|ψ⟩ via intégration numérique.
+        Implémente Règle R5.1 : ⟨ψ|ψ⟩ doit rester = 1
         """
+        rho = np.abs(self.wavefunction)**2
+        return np.sqrt(integrate_1d(rho, self.dx))
+        
+    def normalize(self) -> 'WaveFunctionState':
+        """Retourne état normé : |ψ⟩ / √⟨ψ|ψ⟩"""
+        norm_value = self.norm()
+        if norm_value < 1e-12:
+            raise ValueError("État nul, normalisation impossible")
+        return WaveFunctionState(
+            self.spatial_grid,
+            self.wavefunction / norm_value
+        )
+        
+    def inner_product(self, other: 'WaveFunctionState') -> complex:
+        """
+        Calcule ⟨φ|ψ⟩ = ∫ φ*(x)ψ(x) dx
+        Source : [file:1, Chapitre II, § B-2-c]
+        """
+        if not np.allclose(self.spatial_grid, other.spatial_grid):
+            raise ValueError("Grilles spatiales incompatibles")
+        integrand = np.conj(other.wavefunction) * self.wavefunction
+        return integrate_1d(integrand, self.dx)
         
     def probability_density(self) -> np.ndarray:
-        """
-        Calcule ρ(r) = |ψ(r)|²
-        Source : [file:1, Chapitre I, § B-2]
-        """
-        
-    def probability_in_volume(self, volume_indices) -> float:
-        """
-        Intègre |ψ(r)|² sur un volume
-        Approximation : somme discrète (intégration non détaillée dans synthèse)
-        """
+        """Règle R2.1 : ρ(x) = |ψ(x)|²"""
+        return np.abs(self.wavefunction)**2
 
 class EigenStateBasis(QuantumState):
     """
