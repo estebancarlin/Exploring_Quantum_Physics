@@ -42,26 +42,27 @@ numerical_parameters:
 # ============================================================
 systems:
   free_particle:
-    mass: null                      # Masse particule (kg)
+    mass: 9.1093837015e-31      # Masse électron (kg)
     
   harmonic_oscillator:
-    mass: null                      # m (kg)
-    omega: null                     # Pulsation ω (rad/s)
-                                    # Source : [file:1, Chapitre V, § A]
-    n_max_fock: 50                  # Troncature base de Fock {|n⟩}
+    mass: 9.1093837015e-31
+    omega: 1.0e15                # Pulsation ω (rad/s)
+    n_max_fock: 50               # Troncature base de Fock {|n⟩}
     
   potential_systems:
-    potential_type: "custom"        # "infinite_well", "harmonic", "custom"
-    potential_parameters:
-      # Paramètres dépendant du type
-      # Ex: largeur puits, profondeur, etc.
-      
-  hydrogen_atom:
-    # LIMITE : Détails insuffisants dans synthèse extraite pour paramétrage complet
-    # [file:1, Chapitre VII] : formules finales seulement (E0, a0)
-    # Méthode de résolution numérique non fournie
-    a_0: null                       # Rayon de Bohr (m)
-    E_0: null                       # Énergie fondamentale (J)
+    infinite_well:
+      width: 1.0e-9              # Largeur puits (m)
+      mass: 9.1093837015e-31     # Masse particule (kg)
+    
+    finite_well:
+      width: 2.0e-9              # Largeur puits (m)
+      depth: 1.0e-18             # Profondeur V₀ (J) ~6 eV
+      mass: 9.1093837015e-31
+    
+    barrier:
+      width: 1.0e-9              # Largeur barrière (m)
+      height: 5.0e-19            # Hauteur V₀ (J) ~3 eV
+      mass: 9.1093837015e-31
 
 # ============================================================
 # CONFIGURATION DES EXPÉRIENCES

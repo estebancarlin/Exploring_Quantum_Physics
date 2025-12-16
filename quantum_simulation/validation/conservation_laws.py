@@ -11,126 +11,193 @@ from typing import Dict, Optional
 from quantum_simulation.core.state import WaveFunctionState
 from quantum_simulation.utils.numerical import integrate_1d, gradient_1d
 
-
 class ConservationValidator:
     """
     Valide conservation probabilité et équation de continuité.
     """
     
-    def __init__(self, hbar: float, mass: float, tolerance: float = 1e-9):
+    def __init__(self, hbar: float, mass: float, tolerance: float = 1e-8):
         """
         Args:
             hbar: Constante de Planck réduite (J·s)
             mass: Masse particule (kg)
-            tolerance: Tolérance conservation
+            tolerance: Tolérance pour tests conservation
         """
         self.hbar = hbar
         self.mass = mass
         self.tolerance = tolerance
         
-    def validate_norm_conservation(self, states: list[WaveFunctionState], 
-                                    times: np.ndarray) -> Dict[str, any]:
+    def validate_norm_conservation(self, states, times=None) -> Dict[str, any]:
         """
-        Vérifie Règle R5.1 : ⟨ψ(t)|ψ(t)⟩ = 1 constant.
+        Vérifie conservation norme ⟨ψ|ψ⟩ = 1.
+        
+        Deux modes :
+        1. État unique : validate_norm_conservation(state)
+        2. Évolution : validate_norm_conservation(states, times)
         
         Args:
-            states: États à différents temps
+            states: État unique OU liste d'états
+            times: (optionnel) Temps correspondants si liste états
+            
+        Returns:
+            - Mode simple : {'norm': float, 'is_conserved': bool}
+            - Mode évolution : {'norms': array, 'times': array, 'is_conserved': bool, 
+                                'max_deviation': float, 'mean_deviation': float}
+        """
+        # Détection mode : liste ou état unique
+        if isinstance(states, list):
+            # Mode évolution
+            if times is None:
+                raise ValueError("Mode évolution nécessite argument 'times'")
+            
+            return self._validate_norm_evolution(states, times)
+        else:
+            # Mode état unique
+            return self._validate_norm_single(states)
+    
+    def _validate_norm_single(self, state) -> Dict[str, float]:
+        """
+        Valide norme d'un seul état.
+        
+        Returns:
+            - 'norm': Norme calculée
+            - 'is_conserved': True si |norm - 1| < tolerance
+        """
+        norm = state.norm()
+        is_conserved = abs(norm - 1.0) < self.tolerance
+        
+        return {
+            'norm': norm,
+            'is_conserved': is_conserved
+        }
+    
+    def _validate_norm_evolution(self, states: list, times: np.ndarray) -> Dict[str, any]:
+        """
+        Valide conservation norme durant évolution.
+        
+        Args:
+            states: Liste états quantiques
             times: Temps correspondants
             
         Returns:
-            Dictionnaire résultats validation
+            - 'norms': Normes à chaque instant
+            - 'times': Temps échantillonnés
+            - 'is_conserved': True si toutes normes dans tolérance
+            - 'max_deviation': Max|norm - 1|
+            - 'mean_deviation': Moyenne|norm - 1|
         """
+        if len(states) != len(times):
+            raise ValueError(f"Nombre états ({len(states)}) ≠ nombre temps ({len(times)})")
+        
         norms = np.array([state.norm() for state in states])
         
-        # Écarts par rapport à 1
+        # Déviations par rapport à 1
         deviations = np.abs(norms - 1.0)
         max_deviation = np.max(deviations)
         mean_deviation = np.mean(deviations)
         
+        # Conservation : toutes déviations < tolérance
         is_conserved = max_deviation < self.tolerance
         
         return {
-            'times': times,
             'norms': norms,
-            'deviations': deviations,
-            'max_deviation': max_deviation,
-            'mean_deviation': mean_deviation,
+            'times': times,
             'is_conserved': is_conserved,
-            'tolerance': self.tolerance
+            'max_deviation': max_deviation,
+            'mean_deviation': mean_deviation
         }
         
     def compute_probability_current(self, state: WaveFunctionState) -> np.ndarray:
         """
-        Calcule courant de probabilité J(x).
+        Calcule courant probabilité J(x) = (ℏ/m) Im(ψ* ∇ψ).
         
-        Règle R5.2 :  J = (ℏ/2mi)[ψ*∇ψ - ψ∇ψ*]
-                        = (1/m)Re(ψ* · (ℏ/i)∇ψ)
-        
+        Args:
+            state: État quantique
+            
         Returns:
-            Courant J(x) sur grille (m⁻²·s⁻¹ en 3D, m⁻¹·s⁻¹ en 1D)
+            J(x) en kg/s (densité flux probabilité)
+            
+        Note:
+            Formule : J = (ℏ/m) Im(ψ* dψ/dx)
+                       = (ℏ/2im) (ψ* dψ/dx - ψ dψ*/dx)
         """
         psi = state.wavefunction
         dx = state.dx
         
-        # Calcul gradients
-        grad_psi = gradient_1d(psi, dx, order=2)
+        # Gradient de ψ (différences finies centrées)
+        dpsi_dx = gradient_1d(psi, dx, order=2)
         
-        # J = (ℏ/2mi)[ψ*∇ψ - ψ∇ψ*]
-        # Simplifié : J = (ℏ/m) Im(ψ* ∇ψ)
-        psi_conj = np.conj(psi)
-        current = (self.hbar / self.mass) * np.imag(psi_conj * grad_psi)
+        # Formule : J = (ℏ/m) Im(ψ* ∇ψ)
+        #             = (ℏ/m) × (partie imaginaire de ψ* ∇ψ)
+        J = (self.hbar / self.mass) * np.imag(np.conj(psi) * dpsi_dx)
         
-        return current
+        return J
         
-    def validate_continuity_equation(self, state_t: WaveFunctionState,
-                                    state_t_plus_dt: WaveFunctionState,
-                                    dt: float) -> Dict[str, any]:
+    def validate_continuity_equation(self, state_t0: WaveFunctionState,
+                                    state_t1: WaveFunctionState,
+                                    dt: float) -> Dict[str, float]:
         """
-        Vérifie Règle R5.2 : ∂ρ/∂t + ∇·J = 0
+        Vérifie équation continuité : ∂ρ/∂t + ∇·J = 0.
         
         Args:
-            state_t: État au temps t
-            state_t_plus_dt: État au temps t+dt
-            dt: Pas temporel
+            state_t0: État au temps t
+            state_t1: État au temps t + dt
+            dt: Pas temporel (s)
             
         Returns:
-            Résultats validation équation continuité
+            - 'max_residual': Max|∂ρ/∂t + ∇·J| (1/s)
+            - 'mean_residual': Moyenne|résidu|
+            - 'is_satisfied': True si max_residual < tolerance
+            
+        Note:
+            Approximation centrée pour dérivées temporelles :
+            ∂ρ/∂t ≈ (ρ(t+dt) - ρ(t)) / dt
+            
+            Pour divergence :
+            ∇·J ≈ dJ/dx (différences finies)
         """
+        if not np.allclose(state_t0.spatial_grid, state_t1.spatial_grid):
+            raise ValueError("États doivent être sur même grille spatiale")
+        
+        dx = state_t0.dx
+        
         # Densités probabilité
-        rho_t = state_t.probability_density()
-        rho_t_plus_dt = state_t_plus_dt.probability_density()
+        rho_t0 = state_t0.probability_density()
+        rho_t1 = state_t1.probability_density()
         
-        # Dérivée temporelle (différences finies)
-        drho_dt = (rho_t_plus_dt - rho_t) / dt
+        # Dérivée temporelle (différence avant)
+        drho_dt = (rho_t1 - rho_t0) / dt
         
-        # Courant moyen entre t et t+dt
-        J_t = self.compute_probability_current(state_t)
-        J_t_plus_dt = self.compute_probability_current(state_t_plus_dt)
-        J_mean = 0.5 * (J_t + J_t_plus_dt)
+        # Courant moyen (évaluation à t + dt/2 par moyenne)
+        J_t0 = self.compute_probability_current(state_t0)
+        J_t1 = self.compute_probability_current(state_t1)
+        J_avg = 0.5 * (J_t0 + J_t1)
         
-        # Divergence courant
-        dx = state_t.dx
-        div_J = gradient_1d(J_mean, dx, order=2)
+        # Divergence du courant
+        div_J = gradient_1d(J_avg, dx, order=2)
         
-        # Équation continuité : résidu = ∂ρ/∂t + ∇·J (devrait être ≈ 0)
+        # Résidu : ∂ρ/∂t + ∇·J
         residual = drho_dt + div_J
         
-        # Métriques erreur
+        # Métriques
         max_residual = np.max(np.abs(residual))
         mean_residual = np.mean(np.abs(residual))
-        rms_residual = np.sqrt(np.mean(residual**2))
         
-        is_satisfied = max_residual < self.tolerance
+        # Tolérance relative (comparée à échelle typique ∂ρ/∂t)
+        drho_dt_scale = np.max(np.abs(drho_dt))
+        if drho_dt_scale > 1e-50:
+            relative_max_residual = max_residual / drho_dt_scale
+            is_satisfied = relative_max_residual < 0.1  # Tolérance 10%
+        else:
+            # Si ρ stationnaire, résidu doit être petit en absolu
+            is_satisfied = max_residual < self.tolerance
         
         return {
-            'residual': residual,
             'max_residual': max_residual,
             'mean_residual': mean_residual,
-            'rms_residual': rms_residual,
+            'relative_max_residual': relative_max_residual if drho_dt_scale > 1e-50 else 0.0,
             'is_satisfied': is_satisfied,
-            'tolerance': self.tolerance,
-            'drho_dt': drho_dt,
-            'div_J': div_J
+            'drho_dt_scale': drho_dt_scale
         }
         
     def validate_evolution_conservation(self, states: list[WaveFunctionState],

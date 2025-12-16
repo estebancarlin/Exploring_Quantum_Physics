@@ -6,7 +6,18 @@ from quantum_simulation.core.state import QuantumState, EigenStateBasis, WaveFun
 class TimeEvolution:
     """
     Règle R3.1 : iℏ d|ψ⟩/dt = H|ψ⟩
+    
+    Évolution temporelle par intégration équation Schrödinger.
     """
+    
+    def __init__(self, hamiltonian: Hamiltonian, hbar: float):
+        """
+        Args:
+            hamiltonian: Hamiltonien du système
+            hbar: Constante de Planck réduite (J·s)
+        """
+        self.hamiltonian = hamiltonian
+        self.hbar = hbar
     
     def evolve_wavefunction(self, initial_state: WaveFunctionState, 
                             t0: float, t: float, dt: float) -> WaveFunctionState:
@@ -16,21 +27,20 @@ class TimeEvolution:
         Schéma : (I + iH·dt/2ℏ)ψ(t+dt) = (I - iH·dt/2ℏ)ψ(t)
         
         Conserve normalisation (Règle R5.1)
-        """
-        n_steps = int((t - t0) / dt)
-        psi = initial_state.wavefunction.copy()
         
-        for step in range(n_steps):
-            # Construction matrices (à optimiser : pré-calculer si H constant)
-            # Forme : A·ψ_new = B·ψ_old
-            # À implémenter : construction matrices creuses via H.apply()
-            
-            # Résolution système linéaire
-            # psi = spsolve(A, B @ psi)
-            
-            # Vérification conservation norme
-            norm_squared = np.sum(np.abs(psi)**2) * initial_state.dx
-            if abs(norm_squared - 1.0) > 1e-6:
-                raise RuntimeError(f"Norme non conservée : {norm_squared}")
-                
-        return WaveFunctionState(initial_state.spatial_grid, psi)
+        Note:
+            Implémentation provisoire : retourne état initial sans évolution.
+            TODO: Implémenter schéma Crank-Nicolson complet.
+        """
+        # PROVISOIRE : Retourne état initial pour éviter erreurs
+        # En production, implémenter intégration complète
+        import warnings
+        warnings.warn(
+            "TimeEvolution.evolve_wavefunction() provisoire : pas d'évolution réelle",
+            UserWarning
+        )
+        
+        # Copie profonde pour éviter mutation
+        evolved_psi = initial_state.wavefunction.copy()
+        
+        return WaveFunctionState(initial_state.spatial_grid, evolved_psi)

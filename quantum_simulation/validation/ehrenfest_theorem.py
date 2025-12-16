@@ -47,7 +47,7 @@ class EhrenfestValidator:
         }
         
     def compute_mean_force(self, state: WaveFunctionState,
-                           potential: Callable[[np.ndarray], np.ndarray]) -> float:
+                            potential: Callable[[np.ndarray], np.ndarray]) -> float:
         """
         Calcule ⟨-∇V(R)⟩ = ⟨F⟩.
         

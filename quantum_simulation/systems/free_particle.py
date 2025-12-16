@@ -49,16 +49,19 @@ class FreeParticle:
         Returns:
             État propre normalisé de H avec énergie E = ℏ²k²/2m
             
-        Note: Sur grille finie, normalisation discrète appliquée.
+        Note: 
+            Sur grille finie, normalisation discrète appliquée.
+            Utilise normalisation explicite pour garantir ⟨ψ|ψ⟩ = 1.
         """
         psi = np.exp(1j * k * spatial_grid)
         
-        # Normalisation sur grille
-        dx = spatial_grid[1] - spatial_grid[0]
-        norm = np.sqrt(np.sum(np.abs(psi)**2) * dx)
-        psi /= norm
+        # Création état intermédiaire
+        state_unnorm = WaveFunctionState(spatial_grid, psi)
         
-        return WaveFunctionState(spatial_grid, psi)
+        # Normalisation robuste via méthode de WaveFunctionState
+        state = state_unnorm.normalize()
+        
+        return state
         
     def create_gaussian_wavepacket(self, spatial_grid: np.ndarray,
                                     x0: float, sigma_x: float, k0: float) -> WaveFunctionState:
@@ -84,6 +87,19 @@ class FreeParticle:
             - ΔX·ΔP = ℏ/2 (état minimum incertitude)
         """
         x = spatial_grid
+        
+        # Vérification couverture
+        x_min_needed = x0 - 5 * sigma_x
+        x_max_needed = x0 + 5 * sigma_x
+        
+        if x[0] > x_min_needed or x[-1] < x_max_needed:
+            import warnings
+            warnings.warn(
+                f"Grille [{x[0]:.2e}, {x[-1]:.2e}] ne couvre pas ±5σ "
+                f"[{x_min_needed:.2e}, {x_max_needed:.2e}]. "
+                f"Normalisation et incertitudes seront imprécises.",
+                UserWarning
+            )
         
         # Enveloppe gaussienne
         normalization = (2 * np.pi * sigma_x**2)**(-0.25)

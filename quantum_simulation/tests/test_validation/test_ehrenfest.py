@@ -2,6 +2,12 @@
 Tests unitaires pour théorème Ehrenfest.
 """
 
+import sys
+from pathlib import Path
+# HACK: Ajouter racine projet au path (temporaire)
+project_root = Path(__file__).parent.parent.parent.parent
+sys.path.insert(0, str(project_root))
+
 import pytest
 import numpy as np
 from quantum_simulation.validation.ehrenfest_theorem import EhrenfestValidator
