@@ -1,1 +1,1 @@
-# Exploring_PINNs
+# Exploring_Quantum_Physics
