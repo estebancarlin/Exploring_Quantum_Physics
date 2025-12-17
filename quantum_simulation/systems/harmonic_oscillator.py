@@ -10,6 +10,7 @@ Sources théoriques :
 
 import numpy as np
 from typing import Optional
+from quantum_simulation.core.state import WaveFunctionState
 
 
 class HarmonicOscillator:
@@ -330,3 +331,51 @@ class HarmonicOscillator:
         beta = 1.0 / (boltzmann_k * temperature)
         
         return 1.0 / (np.exp(beta * self.hbar * self.omega) - 1.0)
+    
+    def wavefunction_position(self, n: int, x_grid: np.ndarray) -> WaveFunctionState:
+        """
+        Fonction d'onde ψₙ(x) en représentation position.
+        
+        Formule (Complément BV, hors extraits fournis) :
+            ψₙ(x) = (mω/πℏ)^(1/4) · 1/√(2ⁿn!) · Hₙ(ξ) · exp(-ξ²/2)
+            où ξ = √(mω/ℏ) x
+            Hₙ = polynômes Hermite (physicien)
+        
+        Args:
+            n: Niveau quantique (n ≥ 0)
+            x_grid: Grille spatiale (m)
+            
+        Returns:
+            État normalisé WaveFunctionState
+            
+        Note:
+            EXTENSION : Utilise scipy.special.eval_hermite.
+            Source externe au cours (polynômes Hermite mentionnés mais non détaillés).
+            
+        Raises:
+            ImportError: Si scipy non disponible
+            ValueError: Si n < 0
+            
+        References:
+            - Décision D4 : Extension Option 2 (Hermite)
+            - Chapitre V, § B : Spectre HO
+        """
+        from scipy.special import eval_hermite
+        from math import factorial
+        
+        if n < 0:
+            raise ValueError(f"Niveau quantique négatif : n={n}")
+        
+        # Longueur caractéristique
+        x0 = np.sqrt(self.hbar / (self.mass * self.omega))
+        xi = x_grid / x0  # Variable adimensionnée
+        
+        # Normalisation
+        norm_factor = (self.mass * self.omega / (np.pi * self.hbar))**0.25
+        norm_factor /= np.sqrt(2**n * factorial(n))
+        
+        # Polynôme Hermite (physicien) + gaussienne
+        Hn = eval_hermite(n, xi)
+        psi = norm_factor * Hn * np.exp(-0.5 * xi**2)
+        
+        return WaveFunctionState(x_grid, psi.astype(complex))

@@ -255,3 +255,58 @@ def fft_laplacian(f: np.ndarray, dx: float) -> np.ndarray:
     laplacian = np.fft.ifft(laplacian_hat)
     
     return laplacian
+
+def gradient_1d(f: np.ndarray, dx: float, 
+                order: Literal[2, 4] = 2,
+                boundary: Literal['dirichlet', 'periodic'] = 'dirichlet') -> np.ndarray:
+    """
+    Calcule gradient ∂f/∂x par différences finies.
+    
+    Args:
+        f: Tableau 1D valeurs fonction
+        dx: Pas spatial
+        order: Ordre précision (2 ou 4)
+        boundary: Conditions limites (décision D3)
+        
+    Returns:
+        Gradient df/dx
+        
+    Precision:
+        - Ordre 2 : O(dx²)
+        - Ordre 4 : O(dx⁴)
+        
+    References:
+        - Décision D2 : Ordre 2 par défaut, 4 optionnel
+    """
+    grad = np.zeros_like(f, dtype=complex)
+    
+    if order == 2:
+        # Schéma centré ordre 2
+        if boundary == 'dirichlet':
+            # Padding f[0]=f[-1]=0 implicite
+            grad[1:-1] = (f[2:] - f[:-2]) / (2*dx)
+            grad[0] = (f[1] - 0.0) / (2*dx)  # Bord gauche
+            grad[-1] = (0.0 - f[-2]) / (2*dx)  # Bord droit
+        elif boundary == 'periodic':
+            f_ext = np.concatenate([f[-1:], f, f[:1]])
+            grad = (f_ext[2:] - f_ext[:-2]) / (2*dx)
+    
+    elif order == 4:
+        # Schéma centré ordre 4
+        if boundary == 'dirichlet':
+            # Intérieur
+            grad[2:-2] = (-f[4:] + 8*f[3:-1] - 8*f[1:-3] + f[:-4]) / (12*dx)
+            
+            # Bords : retomber sur ordre 2
+            grad[0] = (f[1] - 0.0) / (2*dx)
+            grad[1] = (f[2] - f[0]) / (2*dx)
+            grad[-2] = (f[-1] - f[-3]) / (2*dx)
+            grad[-1] = (0.0 - f[-2]) / (2*dx)
+        elif boundary == 'periodic':
+            f_ext = np.concatenate([f[-2:], f, f[:2]])
+            grad = (-f_ext[4:] + 8*f_ext[3:-1] - 8*f_ext[1:-3] + f_ext[:-4]) / (12*dx)
+    
+    else:
+        raise ValueError(f"Ordre {order} non supporté (2 ou 4)")
+    
+    return grad

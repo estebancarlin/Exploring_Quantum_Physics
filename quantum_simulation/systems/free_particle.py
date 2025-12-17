@@ -29,18 +29,16 @@ class FreeParticle:
         """
         self.mass = mass
         self.hbar = hbar
+        
+        # ✅ Hamiltonien particule libre (potentiel nul)
+        from quantum_simulation.core.operators import Hamiltonian
+        self.hamiltonian = Hamiltonian(mass, hbar, potential=None)
     
-    def hamiltonian(self, spatial_grid: np.ndarray) -> Hamiltonian:
+    def hamiltonian_matrix(self, spatial_grid: np.ndarray) -> np.ndarray:
         """
-        Construit hamiltonien particule libre sur grille.
+        Construit matrice hamiltonien particule libre sur grille.
         
-        H = -ℏ²/(2m) d²/dx²
-        
-        Args:
-            spatial_grid: Grille spatiale
-            
-        Returns:
-            Opérateur hamiltonien
+        ANCIENNEMENT : hamiltonian() (renommé pour éviter conflit avec attribut)
         """
         n = len(spatial_grid)
         dx = spatial_grid[1] - spatial_grid[0]
@@ -56,13 +54,7 @@ class FreeParticle:
         ) / dx**2
         
         # H = -ℏ²/(2m) Δ
-        hamiltonian_matrix = -(self.hbar**2 / (2 * self.mass)) * laplacian
-        
-        return Hamiltonian(
-            dimension=1,
-            matrix=hamiltonian_matrix,
-            basis_type='position'
-        )
+        return -(self.hbar**2 / (2 * self.mass)) * laplacian
     
     def create_gaussian_wavepacket(self, spatial_grid: np.ndarray,
                                     x0: float, sigma_x: float, k0: float) -> WaveFunctionState:
@@ -130,8 +122,14 @@ class FreeParticle:
         
         # Vérification normalisation sur grille discrète
         state = WaveFunctionState(spatial_grid, psi)
-        if not state.is_normalized(tolerance=1e-6):
+        if not state.is_normalized(tolerance=1e-3):  # ← Tolérance relâchée
             state = state.normalize()
+        
+        # ✅ VALIDATION FINALE stricte
+        final_norm = state.norm()
+        if abs(final_norm - 1.0) > 1e-9:
+            # Dernière normalisation forcée si nécessaire
+            state = WaveFunctionState(spatial_grid, state.wavefunction / final_norm)
             
         return state
     

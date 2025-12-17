@@ -173,10 +173,22 @@ class Hamiltonian(Observable):
     Source : [file:1, Chapitre III, § B-5-b]
     """
     
-    def __init__(self, mass: float, potential: Callable[[np.ndarray], np.ndarray], hbar: float):
+    def __init__(self, mass: float, hbar: float, potential: Callable[[np.ndarray], np.ndarray] = None):
+        """
+        Hamiltonien quantique H = T + V.
+        
+        Args:
+            mass: Masse particule (kg)
+            hbar: Constante Planck réduite (J·s)
+            potential: Fonction V(x) ou None (particule libre)
+                    Signature : V(x: np.ndarray) -> np.ndarray
+        
+        Note:
+            Si potential=None, hamiltonien particule libre H = P²/2m.
+        """
         self.mass = mass
-        self.potential = potential
         self.hbar = hbar
+        self.potential = potential  # ✅ AJOUT CRITIQUE
         
     def apply(self, state: WaveFunctionState) -> WaveFunctionState:
         """
@@ -186,13 +198,18 @@ class Hamiltonian(Observable):
         laplacian_psi = laplacian_1d(state.wavefunction, state.dx)
         kinetic_term = -(self.hbar**2 / (2 * self.mass)) * laplacian_psi
         
-        # Terme potentiel
-        V_values = self.potential(state.spatial_grid)
-        potential_term = V_values * state.wavefunction
+        # Terme potentiel (si présent)
+        if self.potential is not None:
+            V_values = self.potential(state.spatial_grid)
+            potential_term = V_values * state.wavefunction
+            H_psi = kinetic_term + potential_term
+        else:
+            # Particule libre : V = 0
+            H_psi = kinetic_term
         
         return WaveFunctionState(
             state.spatial_grid,
-            kinetic_term + potential_term
+            H_psi
         )
     
     def expectation_value(self, state: WaveFunctionState) -> float:

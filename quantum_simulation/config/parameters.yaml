@@ -37,6 +37,10 @@ numerical_parameters:
     conservation_probability: 1.0e-8 # Conservation norme
     heisenberg_inequality: 1.0e-10  # Tolérance validation ΔX·ΔP ≥ ℏ/2
 
+  derivative_methods:
+    finite_difference_order: 2  # 2 ou 4 (décision D2)
+    boundary_conditions: "dirichlet"  # Décision D3
+
 # ============================================================
 # PARAMÈTRES SPÉCIFIQUES AUX SYSTÈMES
 # ============================================================
