@@ -1,4 +1,5 @@
-from quantum_simulation.
+from typing import List, Dict, Any
+from quantum_simulation.experiments.base_experiment import Experiment
 
 class ExperimentPipeline:
     """

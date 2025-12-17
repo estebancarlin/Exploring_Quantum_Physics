@@ -1,3 +1,5 @@
+
+
 class ReportGenerator:
     """
     Génération rapports synthétiques multi-expériences.
@@ -18,7 +20,7 @@ class ReportGenerator:
         """
         
     def generate_pdf_report(self, pipeline_results: PipelineResults,
-                           output_path: str = "report.pdf"):
+                            output_path: str = "report.pdf"):
         """
         PDF publication-ready avec :
         - Résumé exécutif

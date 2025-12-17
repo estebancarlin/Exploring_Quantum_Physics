@@ -153,6 +153,54 @@ class WaveFunctionState(QuantumState):
         return prob
 
 
+class WaveFunctionStateND:
+    """
+    État fonction d'onde N-dimensionnel (1D/2D/3D).
+    
+    Généralise WaveFunctionState actuel.
+    
+    Attributs:
+        - spatial_grid: tuple[np.ndarray] (grille 1D, meshgrid 2D, ou meshgrid 3D)
+        - wavefunction: np.ndarray (shape = grid.shape)
+        - dimension: int (1, 2 ou 3)
+    """
+    
+    def __init__(self, spatial_grid: Union[np.ndarray, Tuple[np.ndarray]],
+                 wavefunction: np.ndarray):
+        """
+        Args:
+            spatial_grid: 
+                - 1D: np.ndarray (x,)
+                - 2D: (X, Y) avec X, Y = np.meshgrid(x, y)
+                - 3D: (X, Y, Z) avec X, Y, Z = np.meshgrid(x, y, z)
+            wavefunction: np.ndarray avec shape cohérente
+        """
+        # Détection automatique dimension
+        if isinstance(spatial_grid, np.ndarray):
+            self.dimension = 1
+            self.grid = (spatial_grid,)
+        else:
+            self.dimension = len(spatial_grid)
+            self.grid = spatial_grid
+            
+        self.wavefunction = wavefunction
+        self._validate_shape()
+        
+    def norm(self) -> float:
+        """
+        Norme ∫...∫ |ψ|² d^N r.
+        
+        Utilise intégration multi-dimensionnelle (scipy.integrate.nquad).
+        """
+        
+    def probability_density(self) -> np.ndarray:
+        """ρ = |ψ|² (toutes dimensions)."""
+        return np.abs(self.wavefunction)**2
+        
+    def inner_product(self, other: 'WaveFunctionStateND') -> complex:
+        """⟨ψ|φ⟩ = ∫...∫ ψ*φ d^N r."""
+
+
 class EigenStateBasis(QuantumState):
     """
     État décomposé sur base d'états propres {|un⟩}.

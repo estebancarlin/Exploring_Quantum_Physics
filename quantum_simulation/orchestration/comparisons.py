@@ -1,3 +1,6 @@
+from typing import List, Dict
+from quantum_simulation.core.state import WaveFunctionState
+
 class ComparisonEngine:
     """
     Comparaison quantitative entre expériences.
@@ -18,7 +21,7 @@ class ComparisonEngine:
         """
         
     def compare_wavefunctions(self, states1: List[WaveFunctionState],
-                             states2: List[WaveFunctionState]) -> Dict:
+                            states2: List[WaveFunctionState]) -> Dict:
         """
         Calcule distances entre fonctions d'onde.
         
