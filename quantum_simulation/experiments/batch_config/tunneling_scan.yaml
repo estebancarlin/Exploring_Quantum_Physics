@@ -1,0 +1,18 @@
+# Scan paramétrique effet tunnel
+pipeline_name: "Tunneling Coefficient Scan"
+
+scan_parameters:
+  barrier_width:
+    values: [1.0e-10, 2.0e-10, 5.0e-10, 1.0e-9]  # m
+    unit: "m"
+  incident_energy:
+    values: [0.1, 0.3, 0.5, 0.7, 0.9]  # En unités V₀
+    unit: "V0"
+
+fixed_parameters:
+  barrier_height: 1.0  # eV
+  packet_width: 2.0e-10  # m
+
+output:
+  heatmap: "transmission_vs_L_E.png"
+  csv_data: "tunneling_coefficients.csv"

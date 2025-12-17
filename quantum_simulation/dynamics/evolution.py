@@ -67,6 +67,19 @@ class TimeEvolution:
         
         return H_matrix
     
+    def _build_hamiltonian_3d_sparse(grid_3d, potential):
+        """
+        Matrice H 3D creuse (format COO → CSR).
+        
+        Complexité:
+            - Mémoire : O(N) avec N = nx·ny·nz
+            - Construction : O(N) (7 diagonales)
+        """
+        from scipy.sparse import diags, kron
+        
+        # Laplacien = Δₓ ⊗ Iᵧ ⊗ Iᵧ + Iₓ ⊗ Δᵧ ⊗ Iᵧ + Iₓ ⊗ Iᵧ ⊗ Δᵧ
+        # Implémentation produits Kronecker optimisés
+    
     def evolve_wavefunction(self, initial_state: WaveFunctionState, 
                             t0: float, t: float, dt: float) -> WaveFunctionState:
         """

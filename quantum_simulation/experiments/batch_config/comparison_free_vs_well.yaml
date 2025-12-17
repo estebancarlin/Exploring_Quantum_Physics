@@ -1,0 +1,35 @@
+# Comparaison particule libre vs puits infini
+pipeline_name: "Free vs Infinite Well Comparison"
+description: |
+  Compare évolution paquet gaussien dans potentiel V=0 
+  versus confinement puits infini.
+
+experiments:
+  - name: "free_particle"
+    class: "WavePacketEvolution"
+    config_override:
+      experiments:
+        wavepacket_evolution:
+          system:
+            potential: "free"
+          evolution:
+            t_final: 5.0e-15
+            
+  - name: "infinite_well"
+    class: "WavePacketEvolution"
+    config_override:
+      experiments:
+        wavepacket_evolution:
+          system:
+            potential: "infinite_well"
+            well_width: 1.0e-9
+          evolution:
+            t_final: 5.0e-15
+
+comparison:
+  metrics:
+    - "position_uncertainty"  # ΔX(t)
+    - "energy_spread"         # ΔE
+  visualizations:
+    - "side_by_side_density"
+    - "uncertainty_evolution"

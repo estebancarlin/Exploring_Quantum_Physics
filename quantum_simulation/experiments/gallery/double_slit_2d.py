@@ -24,15 +24,20 @@ class DoubleSlit2D(Experiment):
     
     def prepare_initial_state(self):
         # Paquet gaussien devant barrière
+        pass
         
     def define_hamiltonian(self):
-        # H avec potentiel barrière + fentes
+        # H avec potentiel barrière + fentesbreak
+        pass
         
     def evolve_state(self):
         # Propagation Crank-Nicolson 2D
+        pass
         
     def perform_measurements(self):
         # Densité à l'écran ρ(x_écran, y, t)
+        pass
         
     def validate_physics(self) -> Dict[str, bool]:
         # Interfrange mesuré vs théorique
+        pass

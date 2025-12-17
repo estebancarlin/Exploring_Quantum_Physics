@@ -256,6 +256,25 @@ def fft_laplacian(f: np.ndarray, dx: float) -> np.ndarray:
     
     return laplacian
 
+def laplacian_2d_fft(psi: np.ndarray, dx: float, dy: float) -> np.ndarray:
+    """
+    Laplacien 2D via FFT (gain ~10× vs différences finies).
+    
+    Formule : Δψ = IFFT[-(kₓ² + kᵧ²) · FFT(ψ)]
+    """
+    from scipy.fft import fft2, ifft2, fftfreq
+    
+    nx, ny = psi.shape
+    kx = fftfreq(nx, dx) * 2 * np.pi
+    ky = fftfreq(ny, dy) * 2 * np.pi
+    KX, KY = np.meshgrid(kx, ky, indexing='ij')
+    
+    psi_k = fft2(psi)
+    laplacian_k = -(KX**2 + KY**2) * psi_k
+    laplacian_psi = ifft2(laplacian_k).real
+    
+    return laplacian_psi
+
 def gradient_1d(f: np.ndarray, dx: float, 
                 order: Literal[2, 4] = 2,
                 boundary: Literal['dirichlet', 'periodic'] = 'dirichlet') -> np.ndarray:

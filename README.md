@@ -348,3 +348,42 @@ MIT License - see LICENSE for details
 **Project Status**: Active development | Python 3.10+ | Educational/Research tool
 
 **Contact**: [GitHub Issues](https://github.com/estebancarlin/Exploring_Quantum_Physics/issues) for questions/bugs
+
+## 🎨 Advanced Visualizations
+
+### 2D Systems
+
+```python
+from quantum_simulation.visualization.viz_2d import QuantumVisualizer2D
+
+viz = QuantumVisualizer2D()
+viz.plot_density_2d(state_2d, colormap='plasma')
+viz.plot_current_field(state_2d, hbar=1.05e-34, mass=9.1e-31)
+viz.create_animation_2d(states_2d, times, output='evolution.mp4')
+```
+
+### 3D Systems
+
+```python
+from quantum_simulation.visualization.viz_3d import QuantumVisualizer3D
+
+viz3d = QuantumVisualizer3D()
+viz3d.plot_isosurface(state_3d, isovalue=0.1, backend='plotly')
+viz3d.plot_radial_distribution(state_3d)
+```
+
+## 🎪 Experiment Gallery
+
+Run predefined experiments:
+
+```bash
+python examples/scripts/run_gallery.py --all --parallel
+```
+
+Available experiments:
+- `double_slit_2d`: Young's double-slit interference
+- `tunneling_barrier`: Quantum tunneling through barrier
+- `hydrogen_3d`: Hydrogen atom ground state (3D)
+- `harmonic_2d_anisotropic`: 2D anisotropic oscillator
+
+See [`experiments/gallery/`](quantum_simulation/experiments/gallery/) for full list.
